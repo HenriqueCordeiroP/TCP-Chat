@@ -13,18 +13,23 @@ class Server:
         self.server.listen()
         
         self.message_timeout = 30
-
         self.nack_messages = {}
+
+        self.sequence_number = 0
+
+        self.sequence_number_lock = threading.Lock()
 
         self.receive()
         
+    def increment_sequence_number(self):
+        with self.sequence_number_lock:
+            self.sequence_number += 1
 
     def broadcast(self, data):
-        # generates checksum and sends it to every connected client
+        # sends message to every connected client
         data = unpack_data(data)
         message = data['message']
-        checksum = compute_checksum(message)
-        message_with_checksum = "{} {}".format(message, str(checksum)).encode("ascii")
+
         data = {'message':message} # dictionary format for easier transfer
         json_data = headers(data) # function that encodes the dictionary to json/ascii
         for client in self.clients:
@@ -42,12 +47,18 @@ class Server:
                         self.remove_client(client)
                         break
                     else:
+                        self.increment_sequence_number()
+
+                        data = unpack_data(data)
+                        data["sequence_number"] = self.sequence_number
+                        data = headers(data)
+                        
+                        # add to nack dictonary. if message is sent, it will be removed
+                        self.nack_messages[message] = (client, data)
+
                         # create and start timer thread 
                         acknowledgment_timer = threading.Thread(target=self.timer, args=(client, data))
                         acknowledgment_timer.start()
-
-                        # add to nack dictonary. if message is sent, it will be removed
-                        self.nack_messages[message] = (client, data)
 
                         self.broadcast(data)
                 else:

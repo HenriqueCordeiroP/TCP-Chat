@@ -10,12 +10,19 @@ class Client:
         self.nickname = input("Escolha seu apelido: ")
         self.client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.client.connect((IP, PORT))
-        
+         
+        self.sequence_number = 0
+        self.sequence_number_lock = threading.Lock()
+
         receive_thread = threading.Thread(target=self.receive)
         receive_thread.start()
 
         write_thread = threading.Thread(target=self.write)
         write_thread.start()
+
+    def increment_sequence_number(self):
+        with self.sequence_number_lock:
+            self.sequence_number += 1
 
     def receive(self):
         while self.running:
@@ -41,7 +48,8 @@ class Client:
                 self.running = False
                 self.client_socket.close()
             else:
-                data = {"message":message}
+                self.increment_sequence_number()
+                data = {"sequence_number": self.sequence_number,"message":message}
                 json_data = headers(data)
                 self.client.send(json_data)
 
