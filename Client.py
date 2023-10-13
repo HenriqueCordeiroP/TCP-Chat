@@ -1,7 +1,7 @@
 import socket
 import threading
-from utils import PORT, IP, BUFFER_SIZE, compute_checksum
-
+from utils import (PORT, IP, BUFFER_SIZE, compute_checksum, headers,
+                    get_message, get_checksum)
 class Client:
     def __init__(self):
         self.running = True
@@ -19,15 +19,11 @@ class Client:
         while self.running:
             try:
                 # receives message and prints it
-                message = self.client.recv(BUFFER_SIZE).decode('ascii')
+                data = self.client.recv(BUFFER_SIZE)
+                message = get_message(data)
                 if message == 'NICK': # saves the nickname
-                    self.client.send(self.nickname.encode('ascii'))
+                    self.client.send(headers({"message":self.nickname}))
                 else:
-                    try:
-                        checksum = int(message.split()[-1])
-                        message = ' '.join(message.split()[:-1])
-                    except ValueError:
-                        pass
                     print(message)
             except:
                 print("Ocorreu um erro!")
@@ -36,16 +32,16 @@ class Client:
                 break
 
     def write(self):
-        # if message is 'sair', exists the server, else sends message to server
+        # if message is 'sair', exits the server, else sends message to server
         while self.running:
             message = '{}: {}'.format(self.nickname, input(''))
             if message == 'sair':
                 self.running = False
                 self.client_socket.close()
             else:
-                checksum = compute_checksum(message)
-                message = "{} {}".format(message, str(checksum))
-                self.client.send(message.encode('ascii'))
+                data = {"message":message}
+                json_data = headers(data)
+                self.client.send(json_data)
 
 if __name__ == '__main__':
     client = Client()
