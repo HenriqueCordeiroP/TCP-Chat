@@ -18,11 +18,9 @@ class Client:
     def receive(self):
         while self.running:
             try:
+                # receives message and prints it
                 message = self.client.recv(BUFFER_SIZE).decode('ascii')
-                if message == 'NICK':
-                    self.client.send(self.nickname.encode('ascii'))
-                else:
-                    print(message)
+                print(message)
             except:
                 print("An error occured!")
                 self.running = False
@@ -31,6 +29,7 @@ class Client:
 
     def write(self):
         while self.running:
+            # if message is 'sair', exists the server, else sends message to server
             message = '{}: {}'.format(self.nickname, input(''))
             if message == 'sair':
                 self.running = False

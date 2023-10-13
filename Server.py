@@ -14,12 +14,14 @@ class Server:
         self.receive()
         
     def broadcast(self, message):
+        # generates checksum and sends it to every connected client
         checksum = compute_checksum(message)
         message_with_checksum = "{} {}".format(message, str(checksum)).encode("ascii")
         for client in self.clients:
             client.send(message_with_checksum)
 
     def handle(self, client):
+        # receives message, handles checksum and broadcasts the message
         while True:
             try:
                 message = client.recv(BUFFER_SIZE)
@@ -39,8 +41,9 @@ class Server:
                 break
 
     def receive(self):
+        # connects client and broadcasts their connection
         while True:
-
+              
             client, address = self.server.accept()
             print("Conectado com {}".format(str(address)))
 
@@ -60,6 +63,7 @@ class Server:
             thread.start()
 
     def remove_client(self, client):
+        # disconnects client from server
         client.send("Adeus!".encode('ascii'))
         index = self.clients.index(client)
         self.clients.remove(client)
