@@ -20,16 +20,24 @@ class Client:
             try:
                 # receives message and prints it
                 message = self.client.recv(BUFFER_SIZE).decode('ascii')
-                print(message)
+                if message == 'NICK': # saves the nickname
+                    self.client.send(self.nickname.encode('ascii'))
+                else:
+                    try:
+                        checksum = int(message.split()[-1])
+                        message = ' '.join(message.split()[:-1])
+                    except ValueError:
+                        pass
+                    print(message)
             except:
-                print("An error occured!")
+                print("Ocorreu um erro!")
                 self.running = False
                 self.client.close()
                 break
 
     def write(self):
+        # if message is 'sair', exists the server, else sends message to server
         while self.running:
-            # if message is 'sair', exists the server, else sends message to server
             message = '{}: {}'.format(self.nickname, input(''))
             if message == 'sair':
                 self.running = False

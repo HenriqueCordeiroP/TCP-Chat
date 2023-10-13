@@ -10,7 +10,6 @@ def compute_checksum(data):
         data = data.decode("ascii")
     except AttributeError:
         pass
-    print(data)
     for char in data:
         checksum ^= ord(char)
     return checksum
