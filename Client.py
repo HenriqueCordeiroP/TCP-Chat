@@ -2,6 +2,8 @@ import socket
 import threading
 from utils import (PORT, IP, BUFFER_SIZE, compute_checksum, headers,
                     get_message, get_checksum)
+from datetime import datetime
+
 class Client:
     def __init__(self):
         self.running = True
@@ -24,7 +26,7 @@ class Client:
                 if message == 'NICK': # saves the nickname
                     self.client.send(headers({"message":self.nickname}))
                 else:
-                    print(message)
+                    print(f"{datetime.now().strftime('%H:%M')} {message}\n")
             except:
                 print("Ocorreu um erro!")
                 self.running = False
@@ -34,7 +36,7 @@ class Client:
     def write(self):
         # if message is 'sair', exits the server, else sends message to server
         while self.running:
-            message = '{}: {}'.format(self.nickname, input(''))
+            message = '{}: {}'.format(self.nickname, input('> '))
             if message == 'sair':
                 self.running = False
                 self.client_socket.close()
