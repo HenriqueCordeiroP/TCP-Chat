@@ -1,7 +1,7 @@
 import socket
 import threading
 from utils import (PORT, IP, BUFFER_SIZE, compute_checksum, headers, get_message,
-                     get_checksum, get_window_size)
+                     get_checksum, get_window_size, get_ack)
 from datetime import datetime
 import traceback
 class Client:
@@ -33,6 +33,7 @@ class Client:
                 data = self.client.recv(BUFFER_SIZE)
                 message = get_message(data)
                 self.window_size = get_window_size(data)
+                self.last_ack_received = get_ack(data)
                 if message == 'NICK': # saves the nickname
                     self.client.send(headers({"message": self.nickname}))
                 else:
@@ -46,6 +47,8 @@ class Client:
         # if message is 'sair', exits the server, else sends message to server
         while self.running:
             try:
+                print("sq: ", self.sequence_number)
+                print("ack: ", self.last_ack_received)
                 if self.sequence_number - self.last_ack_received < self.window_size:
                     message = '{}: {}'.format(self.nickname, input('> '))
                     self.increment_sequence_number()
@@ -54,9 +57,6 @@ class Client:
                     self.client.send(json_data)
             except: 
                 print(traceback.print_exc())
-
-    def process_ack(self, ack_number):
-        self.last_ack_received = max(self.last_ack_received, ack_number)
 
 if __name__ == '__main__':
     client = Client()

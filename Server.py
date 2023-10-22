@@ -60,11 +60,14 @@ class Server:
 
                 index = self.clients.index(client)
                 self.increment_sequence_number(index)
-                
+
+                client_ack = self.sequence_numbers[index] + 1
+
                 if received_checksum == compute_checksum(message):
                     if self.sequence_numbers[index] == received_sequence_number:
                         unpacked = unpack_data(data)
                         unpacked['window_size'] = self.window_size
+                        unpacked['ack'] = client_ack
                         data = headers(unpacked)
                          # add to nack dictonary. if message is sent, it will be removed
                         self.nack_messages[message] = (client, data)
@@ -72,7 +75,6 @@ class Server:
                          # create and start timer thread 
                         acknowledgment_timer = threading.Thread(target=self.timer, args=(client, data))
                         acknowledgment_timer.start()
-                        print("Seq: ", received_sequence_number)
                         self.broadcast(data)
                     else:
                         print("Número de sequência incorreto.")
@@ -103,7 +105,7 @@ class Server:
             client, address = self.server.accept()
             print("Conectado com {}".format(str(address)))
 
-            client.send(headers({"message": "NICK", "window_size": self.window_size}))
+            client.send(headers({"message": "NICK", "window_size": self.window_size, "ack": 1}))
             data = client.recv(BUFFER_SIZE)
             received_checksum = get_checksum(data)
             nickname = get_message(data)
@@ -114,8 +116,8 @@ class Server:
                 self.clients.append(client)
                 self.sequence_numbers.append(0)
                 print("{} conectou.".format(nickname))
-                client.send(headers({"message": f"Bem vindo {nickname}!", "window_size": self.window_size}))
-                self.broadcast(headers({"message": f"{nickname} entrou no chat!\n", "window_size": self.window_size}))
+                client.send(headers({"message": f"Bem vindo {nickname}!", "window_size": self.window_size, "ack": 1}))
+                self.broadcast(headers({"message": f"{nickname} entrou no chat!\n", "window_size": self.window_size, "ack": 1}))
                 thread = threading.Thread(target=self.handle, args=(client,))
                 thread.start()
 
@@ -125,7 +127,7 @@ class Server:
         self.clients.remove(client)
         client.close()
         nickname = self.nicknames[index]
-        self.broadcast(headers({"message": f"{nickname} saiu.", "window_size": self.window_size}))
+        self.broadcast(headers({"message": f"{nickname} saiu.", "window_size": self.window_size, "ack": 1}))
         self.nicknames.remove(nickname)
 
 if __name__ == '__main__':
