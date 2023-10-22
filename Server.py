@@ -1,13 +1,15 @@
 import socket
 import threading
-from utils import PORT, IP, BUFFER_SIZE, compute_checksum, headers, get_message, get_checksum, unpack_data
+from utils import (PORT, IP, BUFFER_SIZE, compute_checksum, headers,
+                     get_message, get_checksum, unpack_data, get_sequence_number)
 import traceback
 import time
 
 class Server:
     nicknames = []
     clients = []
-
+    sequence_numbers = []
+    
     def __init__(self):
         self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.server.bind((IP, PORT))
@@ -15,23 +17,36 @@ class Server:
 
         self.acknowledgements = {}
         self.message_timeout = 30
+        self.window_size = 5
         self.nack_messages = {}
-        self.sequence_number = 0
+
+        self.window_size_lock = threading.Lock()
         self.sequence_number_lock = threading.Lock()
 
         self.receive()
 
-    def increment_sequence_number(self):
+    def increment_sequence_number(self, index):
         with self.sequence_number_lock:
-            self.sequence_number += 1
+            current_number = self.sequence_numbers[index]
+            current_number += 1
+            self.sequence_numbers[index] =  current_number
+
+    def increment_window_size(self):
+        with self.window_size_lock:
+            self.window_size += 1
+
+    def decrement_window_size(self):
+        with self.window_size_lock:
+            self.window_size -= 1
 
     def broadcast(self, data):
         # sends message to every connected client
-        data = unpack_data(data)
-        message = data['message'] # dictionary format for easier transfer
-        json_data = headers({'message': message})   # function that encodes the dictionary to json/ascii
-        for client in self.clients:
-            client.send(json_data)
+        try:
+            for client in self.clients:
+                client.send(data)
+            self.increment_window_size()
+        except:
+            print(traceback.print_exc())
 
     def handle(self, client):
         # receives message, handles checksum and broadcasts the message
@@ -40,23 +55,27 @@ class Server:
                 data = client.recv(BUFFER_SIZE)
                 received_checksum = get_checksum(data)
                 message = get_message(data)
-                if received_checksum == compute_checksum(message):
-                    if message == 'sair':
-                        self.remove_client(client)
-                        break
-                    else:
-                        self.increment_sequence_number()
-                        data = unpack_data(data)
-                        data["sequence_number"] = self.sequence_number
-                        data = headers(data)
+                received_sequence_number = get_sequence_number(data)
+                self.decrement_window_size()
 
+                index = self.clients.index(client)
+                self.increment_sequence_number(index)
+                
+                if received_checksum == compute_checksum(message):
+                    if self.sequence_numbers[index] == received_sequence_number:
+                        unpacked = unpack_data(data)
+                        unpacked['window_size'] = self.window_size
+                        data = headers(unpacked)
                          # add to nack dictonary. if message is sent, it will be removed
                         self.nack_messages[message] = (client, data)
 
                          # create and start timer thread 
                         acknowledgment_timer = threading.Thread(target=self.timer, args=(client, data))
                         acknowledgment_timer.start()
+                        print("Seq: ", received_sequence_number)
                         self.broadcast(data)
+                    else:
+                        print("Número de sequência incorreto.")
                 else:
                     print("Soma de verificação inválida.")
             except:
@@ -84,7 +103,7 @@ class Server:
             client, address = self.server.accept()
             print("Conectado com {}".format(str(address)))
 
-            client.send(headers({"message": "NICK"}))
+            client.send(headers({"message": "NICK", "window_size": self.window_size}))
             data = client.recv(BUFFER_SIZE)
             received_checksum = get_checksum(data)
             nickname = get_message(data)
@@ -93,20 +112,20 @@ class Server:
             else:
                 self.nicknames.append(nickname)
                 self.clients.append(client)
+                self.sequence_numbers.append(0)
                 print("{} conectou.".format(nickname))
-                client.send(headers({"message": f"Bem vindo {nickname}! Digite \"sair\" para desconectar.\n"}))
-                self.broadcast(headers({"message": f"{nickname} entrou no chat!\n"}))
+                client.send(headers({"message": f"Bem vindo {nickname}!", "window_size": self.window_size}))
+                self.broadcast(headers({"message": f"{nickname} entrou no chat!\n", "window_size": self.window_size}))
                 thread = threading.Thread(target=self.handle, args=(client,))
                 thread.start()
 
     def remove_client(self, client):
         # disconnects client from server
-        client.send(headers({'message': "Até logo!"}))
         index = self.clients.index(client)
         self.clients.remove(client)
         client.close()
         nickname = self.nicknames[index]
-        self.broadcast(headers({"message": f"{nickname} saiu."}))
+        self.broadcast(headers({"message": f"{nickname} saiu.", "window_size": self.window_size}))
         self.nicknames.remove(nickname)
 
 if __name__ == '__main__':

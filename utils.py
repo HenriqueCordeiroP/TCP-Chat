@@ -33,3 +33,28 @@ def get_checksum(data):
     data_json = unpack_data(data)
     checksum = data_json['checksum']
     return int(checksum)
+
+def get_sequence_number(data):
+    data_json = unpack_data(data)
+    sequence_number = data_json['sequence_number']
+    return int(sequence_number)
+
+def get_window_size(data):
+    data_json = unpack_data(data)
+    window_size = data_json['window_size']
+    return int(window_size)
+
+def get_ack(data):
+    data_json = unpack_data(data)
+    ack = data_json['ack']
+    return int(ack)
+"""
+falta:
+- Sequence Number - ok
+- Ack Ok & Timer
+- Forçar falha
+- Relatório
+- Atualizar Slides
+"""
+
+# 5 messages
