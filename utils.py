@@ -48,13 +48,3 @@ def get_ack(data):
     data_json = unpack_data(data)
     ack = data_json['ack']
     return int(ack)
-"""
-falta:
-- Sequence Number - ok
-- Ack Ok & Timer
-- Forçar falha
-- Relatório
-- Atualizar Slides
-"""
-
-# 5 messages
