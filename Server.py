@@ -16,7 +16,7 @@ class Server:
         self.server.listen()
 
         self.acknowledgements = {}
-        self.message_timeout = 2
+        self.message_timeout = 30
         self.window_size = 5
         self.nack_messages = {}
 
