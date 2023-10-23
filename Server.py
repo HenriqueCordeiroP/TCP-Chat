@@ -92,7 +92,6 @@ class Server:
         if not self.ack_ok(data) or force_error:
             # handle timeout
             print("Timeout. Tentando novamente...")
-            client.send()
             self.broadcast(data)
 
     def ack_ok(self, data):
