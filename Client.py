@@ -47,8 +47,8 @@ class Client:
         # if message is 'sair', exits the server, else sends message to server
         while self.running:
             try:
-                print("sq: ", self.sequence_number)
-                print("ack: ", self.last_ack_received)
+                # print("sq: ", self.sequence_number)
+                # print("ack: ", self.last_ack_received)
                 if self.sequence_number - self.last_ack_received < self.window_size:
                     message = '{}: {}'.format(self.nickname, input('> '))
                     self.increment_sequence_number()

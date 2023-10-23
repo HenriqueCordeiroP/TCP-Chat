@@ -16,7 +16,7 @@ class Server:
         self.server.listen()
 
         self.acknowledgements = {}
-        self.message_timeout = 30
+        self.message_timeout = 2
         self.window_size = 5
         self.nack_messages = {}
 
@@ -65,15 +65,17 @@ class Server:
 
                 if received_checksum == compute_checksum(message):
                     if self.sequence_numbers[index] == received_sequence_number:
+                        force_error = False
                         unpacked = unpack_data(data)
                         unpacked['window_size'] = self.window_size
                         unpacked['ack'] = client_ack
                         data = headers(unpacked)
                          # add to nack dictonary. if message is sent, it will be removed
                         self.nack_messages[message] = (client, data)
-
+                        if "TIMEOUTERROR" in message:
+                            force_error = True
+                        acknowledgment_timer = threading.Thread(target=self.timer, args=(client, data, force_error))
                          # create and start timer thread 
-                        acknowledgment_timer = threading.Thread(target=self.timer, args=(client, data))
                         acknowledgment_timer.start()
                         self.broadcast(data)
                     else:
@@ -85,11 +87,12 @@ class Server:
                 self.remove_client(client)
                 break
 
-    def timer(self, client, data):
+    def timer(self, client, data, force_error):
         time.sleep(self.message_timeout)
-        if not self.ack_ok(data):
+        if not self.ack_ok(data) or force_error:
             # handle timeout
-            print("Timeout. Trying again...")
+            print("Timeout. Tentando novamente...")
+            client.send()
             self.broadcast(data)
 
     def ack_ok(self, data):
@@ -127,7 +130,7 @@ class Server:
         self.clients.remove(client)
         client.close()
         nickname = self.nicknames[index]
-        self.broadcast(headers({"message": f"{nickname} saiu.", "window_size": self.window_size, "ack": 1}))
+        self.broadcast(headers({"message": f"{nickname} saiu.", "window_size": self.window_size, "ack": 100}))
         self.nicknames.remove(nickname)
 
 if __name__ == '__main__':
